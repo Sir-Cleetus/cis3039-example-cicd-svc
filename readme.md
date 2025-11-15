@@ -12,9 +12,7 @@ This project provides Azure Functions for managing products.
 
 ## CI/CD Features
 
-This project includes a GitHub Actions workflow (`.github/workflows/build.yml`) to build the project. This would act as a Continuous Integration (CI) check to verify the latest code changes (git commit) have not broken the code base.
-
-Make a small code change, `git commit`, `git push` and then observe the GitHub Action running in the GitHub website (within the Actions tab of the code repo).
+This project includes a GitHub Actions workflow (`.github/workflows/build-and-deploy.yml`) to build the project. This would act as a Continuous Integration (CI) check to verify the latest code changes (git commit) have not broken the code base and a Continuous Deploymemt (CD) to a cloud-based test environment.
 
 > There may be other branches in this repo demonstrating additional CI/CD features.
 
@@ -107,7 +105,7 @@ az group create \
   --location <permitted-location>
 ```
 
-Remember to follow our naming convention, e.g. shopping-lab-ab47-rg
+Remember to follow our naming convention, e.g. `shopping-test-ab47-rg` since we are creating a test environment deployment to which to auto-deploy.
 
 2. Create a storage account (required for Azure Functions):
 
@@ -131,20 +129,38 @@ az functionapp create \
   --functions-version 4
 ```
 
-### Publish the Project to Azure
+### Configure Automated Deployment
 
-Build and deploy your code to the Function App:
+1. Get the Publishing Profile for your Function App:
 
-```bash
-npm run build
-func azure functionapp publish <your-function-app>
-```
+   ```bash
+   # enable publishing via a shared secret
+   az resource update \
+    --resource-group <your-resource-group> \
+    --namespace Microsoft.Web \
+    --parent sites/<your-function-app> \
+    --resource-type basicPublishingCredentialsPolicies \
+    --name scm \
+    --set properties.allow=true
 
-You can now access your endpoints at:
+   # query the publishing profile (shared secret)
+   az webapp deployment list-publishing-profiles \
+    --resource-group <your-resource-group> \
+    --name <your-function-app> \
+    --xml
+   ```
 
-```
-https://<your-function-app>.azurewebsites.net/api/products
-```
+2. Create a GitHub repo secret with the Publishing Profile:
+
+   From the GitHub repo website: `Settings → Secrets and Variables → Actions → New Repository Secret`
+
+   Name the secret `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` and copy in the contents of the publishing profile from the previous step.
+
+3. Update the workflow with your deployed Function App name:
+
+   Modify `.github/workflows/build-and-deploy.yml` with the name of your Azure Function App resource.
+
+   Merge the changes into the main branch to become permenent.
 
 ### Configure CORS (if app needs to call this)
 
